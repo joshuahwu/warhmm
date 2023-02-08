@@ -1,8 +1,23 @@
+"""
+Written by Julia Costacurta
+Scott Linderman Lab @ Stanford
+
+Costacurta, Julia C., et al. "Distinguishing discrete and continuous behavioral 
+variability using warped autoregressive HMMs." bioRxiv (2022): 2022-06.
+
+https://openreview.net/forum?id=6Kj1wCgiUp_
+"""
+
 import wandb
 import numpy as np
 import os
 from warhmm_gp import TWARHMM_GP, LinearRegressionObservations_GP
-from data_util import load_dataset, standardize_pcs, precompute_ar_covariates, log_wandb_model
+from data_util import (
+    load_dataset,
+    standardize_pcs,
+    precompute_ar_covariates,
+    log_wandb_model,
+)
 import datetime
 from kernels import RBF
 import matplotlib.pyplot as plt
@@ -19,7 +34,7 @@ hyperparameter_defaults = dict(
     kappa=10000,
     alpha=5,
     covariance_reg=1e-4,
-    lengthscale=1
+    lengthscale=1,
 )
 
 train_dataset, test_dataset = load_dataset(num_pcs=data_dim)
@@ -35,23 +50,39 @@ precompute_ar_covariates(test_dataset, num_lags=num_lags, fit_intercept=True)
 LinearRegressionObservations_GP.precompute_suff_stats(train_dataset)
 LinearRegressionObservations_GP.precompute_suff_stats(test_dataset)
 
-covariates_dim = train_dataset[0]['covariates'].shape[1]
+covariates_dim = train_dataset[0]["covariates"].shape[1]
 
 projectname = "twarhmm_gp"
 wandb.init(config=hyperparameter_defaults, entity="twss", project=projectname)
 config = wandb.config
 
-taus = np.linspace(-config['tau_scale'], config['tau_scale'], config['num_taus'])
-twarhmm_gp = TWARHMM_GP(config, taus, kernel=RBF(config['num_discrete_states'], config['lengthscale']))
+taus = np.linspace(-config["tau_scale"], config["tau_scale"], config["num_taus"])
+twarhmm_gp = TWARHMM_GP(
+    config, taus, kernel=RBF(config["num_discrete_states"], config["lengthscale"])
+)
 
-train_lls, test_lls, train_posteriors, test_posteriors, = \
-        twarhmm_gp.fit_stoch(train_dataset,
-                         test_dataset,
-                          num_epochs=50, fit_transitions=True, fit_tau=False, fit_kernel_params=False, wandb_log=True)
-#plt.plot(test_lls)
+(
+    train_lls,
+    test_lls,
+    train_posteriors,
+    test_posteriors,
+) = twarhmm_gp.fit_stoch(
+    train_dataset,
+    test_dataset,
+    num_epochs=50,
+    fit_transitions=True,
+    fit_tau=False,
+    fit_kernel_params=False,
+    wandb_log=True,
+)
+# plt.plot(test_lls)
 # e = datetime.datetime.now()
 #
-log_wandb_model(twarhmm_gp, "twarhmm_gp_K{}_T{}".format(twarhmm_gp.num_discrete_states,len(twarhmm_gp.taus)),type="model")
+log_wandb_model(
+    twarhmm_gp,
+    "twarhmm_gp_K{}_T{}".format(twarhmm_gp.num_discrete_states, len(twarhmm_gp.taus)),
+    type="model",
+)
 # if test_posteriors is not None:
 #     wnb_histogram_plot(test_posteriors, tau_duration=True, duration_plot=True, state_usage_plot=True, ordered_state_usage=True, state_switch=True)
 #     centroid_velocity_plot(test_posteriors)
